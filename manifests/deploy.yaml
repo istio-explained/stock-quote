@@ -18,7 +18,8 @@ kind: Deployment
 metadata:
   name: stock-quote
   labels:
-    app: stock-trader
+    app: stock-quote
+    version: v1
   annotations:
     prism.subkind: Liberty
 spec:

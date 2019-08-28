@@ -1,0 +1,13 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: api-connect-virtual-service
+spec:
+  hosts:
+  - "api.us.apiconnect.ibmcloud.com"
+  http:
+  - timeout: 3s
+    route:
+      - destination:
+          host: "api.us.apiconnect.ibmcloud.com"
+        weight: 100

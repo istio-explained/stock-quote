@@ -10,16 +10,7 @@ spec:
       delay:
         fixedDelay: 90s
         percent: 100
-    match:
-    - headers:
-        user-agent:
-          regex: '.*Firefox.*'
     route:
-    - destination:
-        host: stock-quote-service
-        port:
-          number: 9080
-  - route:
     - destination:
         host: stock-quote-service
         port:

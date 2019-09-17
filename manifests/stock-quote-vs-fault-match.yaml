@@ -1,0 +1,27 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: virtual-service-stock-quote
+spec:
+  hosts:
+  - stock-quote-service
+  http:
+  - fault:
+      delay:
+        fixedDelay: 90s
+        percent: 100
+    match:
+    - headers:
+        portfolio_user:
+          exact: Jason
+    route:
+    - destination:
+        host: stock-quote-service
+        port:
+          number: 9080
+  - route:
+    - destination:
+        host: stock-quote-service
+        port:
+          number: 9080
+

@@ -26,9 +26,16 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Set;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 //Logging (JSR 47)
 import java.util.logging.Level;
@@ -55,6 +62,7 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 //mpFaultTolerance 1.1
 import org.eclipse.microprofile.faulttolerance.Fallback;
+import org.json.JSONObject;
 
 //Jedis (Java for Redis)
 import redis.clients.jedis.Jedis;
@@ -107,6 +115,8 @@ public class StockQuote extends Application {
 		iexApiKey = System.getenv("IEX_API_KEY");
 		if ((iexApiKey == null) || iexApiKey.isEmpty()) {
 			logger.warning("No API key provided for IEX.  If API Connect isn't available, fallback to direct calls to IEX will fail");
+		} else {
+			logger.info("IEX_API_KEY: " + iexApiKey);
 		}
 	}
 
@@ -226,69 +236,38 @@ public class StockQuote extends Application {
 		}
 
 		Quote quote = null;
-		if (jedisPool != null) try {
-			Jedis jedis = jedisPool.getResource(); //Get a connection from the pool
-			if (jedis==null) logger.warning("Unable to get connection to Redis from pool");
 
-			logger.info("Getting "+symbol+" from Redis");
-			String cachedValue = jedis.get(symbol); //Try to get it from Redis
-			if (cachedValue == null) { //It wasn't in Redis
-				logger.info(symbol+" wasn't in Redis so we will try to put it there");
-				quote = apiConnectClient.getStockQuoteViaAPIConnect(symbol); //so go get it like we did before we'd ever heard of Redis
-				logger.info("Got quote for "+symbol+" from API Connect");
-				jedis.set(symbol, quote.toString()); //Put in Redis so it's there next time we ask
-				logger.info("Put "+symbol+" in Redis");
-			} else {
-				logger.info("Got this from Redis for "+symbol+": "+cachedValue);
+		// make a connection
+		String url = "https://cloud.iexapis.com/stable/stock/"+symbol+"/quote?token="+iexApiKey;
+		URL obj = new URL(url);
+		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
-				try {
-					Jsonb jsonb = JsonbBuilder.create();
-					quote = jsonb.fromJson(cachedValue, Quote.class);
-				} catch (Throwable t4) {
-					logger.info("Unable to parse JSON obtained from Redis.  Proceeding as if the quote was too stale.");
-					logException(t4);
-				}
+		// optional default is GET
+		con.setRequestMethod("GET");
 
-				if (isStale(quote)) {
-					logger.info(symbol+" in Redis was too stale");
-					try {
-						quote = apiConnectClient.getStockQuoteViaAPIConnect(symbol); //so go get a less stale value
-						logger.info("Got quote for "+symbol+" from API Connect");
-						jedis.set(symbol, quote.toString()); //Put in Redis so it's there next time we ask
-						logger.info("Refreshed "+symbol+" in Redis");
-					} catch (Throwable t) {
-						logger.info("Error getting fresh quote; using cached value instead");
-						logger.log(Level.WARNING, t.getClass().getName(), t);
-					}
-				} else {
-					logger.info("Used "+symbol+" from Redis");
-				}
-			}
+		int responseCode = con.getResponseCode();
+		logger.info("\nSending 'GET' request to URL : " + url);
+		logger.info("Response Code : " + responseCode);
 
-			logger.info("Completed getting stock quote - releasing Redis resources");
-			jedis.close(); //Release resource
-		} catch (Throwable t) {
-			logException(t);
-			
-			//something went wrong using Redis.  Fall back to the old-fashioned direct approach
-			try {
-				quote = apiConnectClient.getStockQuoteViaAPIConnect(symbol);
-				logger.info("Got quote for "+symbol+" from API Connect");
-			} catch (Throwable t2) {
-				logException(t2);
-				return getTestQuote(symbol, ERROR);
-			}
-		} else {
-			//Redis not configured.  Fall back to the old-fashioned direct approach
-			try {
-				logger.warning("Redis URL not configured, so driving call directly to API Connect");
-				quote = apiConnectClient.getStockQuoteViaAPIConnect(symbol);
-				logger.info("Got quote for "+symbol+" from API Connect");
-			} catch (Throwable t3) {
-				logException(t3);
-				return getTestQuote(symbol, ERROR);
-			}
+		BufferedReader in = new BufferedReader(
+		        new InputStreamReader(con.getInputStream()));
+		String inputLine;
+		StringBuffer response = new StringBuffer();
+
+		while ((inputLine = in.readLine()) != null) {
+			response.append(inputLine);
 		}
+		in.close();
+
+		//print result
+		JSONObject resObject = new JSONObject(response.toString());
+
+		Date now = new Date();
+		String today = formatter.format(now);
+
+		logger.info("Building quote from IEX API");
+
+		quote = new Quote(symbol, resObject.getDouble("latestPrice"), today);
 
 		return quote;
 	}

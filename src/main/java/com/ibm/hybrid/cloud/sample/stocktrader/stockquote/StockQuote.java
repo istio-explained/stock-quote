@@ -114,7 +114,8 @@ public class StockQuote extends Application {
 	
 		iexApiKey = System.getenv("IEX_API_KEY");
 		if ((iexApiKey == null) || iexApiKey.isEmpty()) {
-			logger.warning("No API key provided for IEX.  If API Connect isn't available, fallback to direct calls to IEX will fail");
+			logger.warning("No API key provided for IEX.  Using the test key");
+			iexApiKey = "pk_b7343b49d5f14ad8a9dc6fc12089342b";
 		} else {
 			logger.info("IEX_API_KEY: " + iexApiKey);
 		}

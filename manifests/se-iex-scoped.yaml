@@ -4,7 +4,9 @@ metadata:
   name: api-connect-service-entry
 spec:
   hosts:
-  - "api.us.apiconnect.ibmcloud.com"
+  - "cloud.iexapis.com"
+  exportTo:
+  - "."
   ports:
   - number: 443
     name: https

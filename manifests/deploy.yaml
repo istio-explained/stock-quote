@@ -88,7 +88,7 @@ spec:
           - name: IEX_API_KEY
             valueFrom:
               secretKeyRef:
-                name: redis
+                name: iex
                 key: iex-api-key
                 optional: true
           - name: WLP_LOGGING_CONSOLE_FORMAT

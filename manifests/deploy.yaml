@@ -13,7 +13,7 @@
 #   limitations under the License.
 
 #Deploy the pod
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: stock-quote
@@ -24,6 +24,9 @@ metadata:
     prism.subkind: Liberty
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: stock-quote
   template:
     metadata:
       labels:
